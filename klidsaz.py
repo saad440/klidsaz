@@ -1,0 +1,512 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+#
+#       Written by Muhammad Saad <muhammad.saad3@gmail.com>
+#       
+#       This program is free software; you can redistribute it and/or modify
+#       it under the terms of the GNU General Public License as published by
+#       the Free Software Foundation; either version 3 of the License, or
+#       (at your option) any later version.
+#       
+#       This program is distributed in the hope that it will be useful,
+#       but WITHOUT ANY WARRANTY; without even the implied warranty of
+#       MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#       GNU General Public License for more details.
+#       
+#       You should have received a copy of the GNU General Public License
+#       along with this program; if not, write to the Free Software
+#       Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
+#       MA 02110-1301, USA.
+
+APP_NAME = "klidsaz"
+APP_VERSION = "2.0 beta 1"
+APP_AUTHOR = "Muhammad Saad"
+APP_HOMEPAGE = "https://github.com/saad440/klidsaz"
+
+KB_INST_SCRIPT = './kb_install'
+
+import pygtk
+import gtk
+import re
+import os
+import subprocess
+#Enabling localization of the interface
+import locale
+import gettext
+_=gettext.gettext
+#If installed, set LOCALE_DIR = gettext._default_localedir
+#(or wherever the locale files are)
+LOCALE_DIR = "locale"
+locale.setlocale(locale.LC_ALL, '')
+gettext.bindtextdomain(APP_NAME, LOCALE_DIR)
+gettext.textdomain(APP_NAME)
+
+# A few more details that should be translatable
+APP_TITLE = _("KlidSaz")
+APP_INTRO = _("A simple Keyboard layout generation tool")
+APP_LICENSE = _("GNU General Public License version 3")
+
+
+# Rows of keys. Names are as recognized by XKB
+keynames_row1 = ['<TLDE>','<AE01>','<AE02>','<AE03>','<AE04>','<AE05>',
+'<AE06>','<AE07>','<AE08>','<AE09>','<AE10>','<AE11>','<AE12>','<BKSP>']
+keynames_row2 = ['<TAB>','<AD01>','<AD02>','<AD03>','<AD04>','<AD05>',
+'<AD06>','<AD07>','<AD08>','<AD09>','<AD10>','<AD11>','<AD12>','<BKSL>']
+keynames_row3 = ['<CAPS>','<AC01>','<AC02>','<AC03>','<AC04>','<AC05>',
+'<AC06>','<AC07>','<AC08>','<AC09>','<AC10>','<AC11>','<RTRN>']
+keynames_row4 = ['<LFSH>','<AB01>','<AB02>','<AB03>','<AB04>','<AB05>',
+'<AB06>','<AB07>','<AB08>','<AB09>','<AB10>','<RTSH>']
+keynames_row5 = ['<LCTL>','<LWIN>','<LALT>','<SPCE>','<RALT>','<RWIN>',
+'<MENU>','<RCTL>']
+
+
+class KB_Layout_Tool(object):
+	def __init__(self):
+		self.keyboard_properties = {'kbname':'', 'kbshortdesc':'',
+									'kbdesc':'', 'kblangcode':''}
+		self.kbinstall_options = {'forced':''}
+		self.flag_installingnow = False
+		
+		self.keys = dict()
+		self.table = gtk.Table(10,30,True)
+		self.table.set_direction(gtk.TEXT_DIR_LTR)
+		
+		self.generate_row_normal(keynames_row1, 2, 0)
+		self.generate_row_normal(keynames_row2, 3, 2)
+		self.generate_row_normal(keynames_row3, 4, 4)
+		self.generate_row_normal(keynames_row4, 5, 6)
+		self.generate_last_row(keynames_row5)
+		
+		self.set_friendly_labels()
+		
+		self.generate_file_button = gtk.Button(_('Generate File'))
+		self.generate_file_button.connect('clicked', self.save_file)
+		self.install_keyboard_button = gtk.Button(_('Install Keyboard'))
+		self.install_keyboard_button.connect('clicked', self.install_keyboard)
+		self.level_indicator = gtk.Label()
+		self.about_button = gtk.Button(stock=gtk.STOCK_ABOUT)
+		self.about_button.connect('clicked', self.show_about_dialog)
+		self.main_window = gtk.Window(type=gtk.WINDOW_TOPLEVEL)
+		self.main_window.set_title(APP_NAME)
+		self.main_window.connect('delete_event', gtk.main_quit)
+		self.vbox1 = gtk.VBox(False)
+		self.hbox1 = gtk.HBox(True)
+		self.scrolled_window = gtk.ScrolledWindow()
+		self.scrolled_window.set_size_request(780,260)
+		self.kb_statusbar = gtk.Statusbar()
+		self.hbox1.add(self.generate_file_button)
+		self.hbox1.add(self.install_keyboard_button)
+		self.hbox1.add(self.level_indicator)
+		self.hbox1.add(self.about_button)
+		self.vbox1.add(self.hbox1)
+		self.vbox1.add(self.scrolled_window)
+		self.vbox1.add(self.kb_statusbar)
+		self.main_window.add(self.vbox1)
+		self.scrolled_window.add_with_viewport(self.table)
+		
+		for key in self.keys:
+			if len(self.keys[key])!=4:
+				self.keys[key].show()
+		
+		self.select_keys_level()
+		self.hbox1.show_all()
+		self.table.show()
+		self.vbox1.show()
+		self.scrolled_window.show()
+		self.kb_statusbar.show()
+		self.main_window.show()
+		gtk.main()
+	
+	def is_valid_unicode(self, text):
+		if re.search(r'^U\+?([A-Z0-9]{4,6})$', text, re.I):
+			try:
+				# Is it a valid hexadecimal number?
+				n = int(text[1:], 16)
+				# Do not allow Unicode value greater than U+10FFFF
+				if n <= 1114111:
+					print n    #debug-helper
+					return True
+				else:
+					print "Invalid Unicode value"
+					return False
+			except ValueError:
+				print "Invalid Unicode value"
+				return False
+			except:
+				return False
+		else:
+			print "Not Unicode"
+			return False
+	
+	def set_key_value(self, current_key):
+		dialog = gtk.Dialog(_('Input Value'))
+		entry = gtk.Entry()
+		entry.show()
+		dialog.vbox.add(entry)
+		ok_button = gtk.Button(stock=gtk.STOCK_OK)
+		ok_button.show()
+		cancel_button = gtk.Button(stock=gtk.STOCK_CANCEL)
+		cancel_button.show()
+		
+		def set_key_label(widget, current_key):
+			input_text = entry.get_text()
+			try:
+				# If the input is a character
+				n = ord(input_text.decode('utf8'))
+				print n    #debug-helper
+				label_text = input_text
+				# Get Unicode Value
+				value_text = "U%04x".upper() % n
+			except TypeError:
+				# If empty
+				if input_text == "":
+					label_text = ""
+					value_text = 'VoidSymbol'
+				# If already Unicode
+				elif self.is_valid_unicode(input_text):
+					label_text = unichr(int(input_text[1:], 16))
+					value_text = input_text.upper().replace("+","")
+				else:
+					print "Invalid data"
+					return
+			except:
+				return
+			current_key.set_label(label_text)
+			current_key.value = value_text
+		
+		entry.connect('activate', set_key_label, current_key)
+		entry.connect_object('activate', gtk.Widget.destroy, dialog)
+		ok_button.connect('clicked', set_key_label, current_key)
+		ok_button.connect_object('clicked', gtk.Widget.destroy, dialog)
+		cancel_button.connect_object('clicked', gtk.Widget.destroy, dialog)
+		
+		dialog.action_area.add(cancel_button)
+		dialog.action_area.add(ok_button)
+		dialog.run()
+	
+	def show_key_value(self, key, xkb_keyname):
+		self.kb_statusbar.push(1, _("Currently Assigned Value for {0} ({1}): {2}").format(xkb_keyname, self.level_indicator.get_label(), key.value))
+	
+	def clear_kb_statusbar(self, key):
+		self.kb_statusbar.pop(2)
+		self.kb_statusbar.pop(1)
+	
+	def generate_row_normal(self, keynames_row, xi, yi):
+		
+		def generate_4level_key(keyname, xi, xj, yi, yj):
+			self.keys[keyname] = [gtk.Button(), gtk.Button(), gtk.Button(), gtk.Button()]
+			for n in range(4):
+				self.keys[keyname][n].connect('clicked', self.set_key_value)
+				self.keys[keyname][n].connect('enter', self.show_key_value, keyname)
+				self.keys[keyname][n].connect('leave', self.clear_kb_statusbar)
+				# Set default values to 'VoidSymbol' to make file generation easier
+				self.keys[keyname][n].value = 'VoidSymbol'
+				self.table.attach(self.keys[keyname][n], xi, xj, yi, yj)
+		
+		if keynames_row == keynames_row1:
+			generate_4level_key(keynames_row1[0], 0, xi, yi, yi+2)
+		elif keynames_row == keynames_row4:
+			self.keys[keynames_row[0]] = gtk.ToggleButton(keynames_row[0])
+			# Callback for the left Shift key
+			self.keys[keynames_row[0]].connect('toggled', self.shift_key_callback)
+			self.table.attach(self.keys[keynames_row[0]], 0, xi, yi, yi+2)
+		else:
+			self.keys[keynames_row[0]] = gtk.Button(keynames_row[0])
+			self.table.attach(self.keys[keynames_row[0]], 0, xi, yi, yi+2)
+		
+		for keyname in keynames_row[1:-1]:
+			generate_4level_key(keyname, xi, xi+2, yi, yi+2)
+			xi = xi+2
+		
+		if keynames_row == keynames_row2:
+			generate_4level_key(keynames_row2[-1], xi, 30, yi, yi+2)
+		elif keynames_row == keynames_row4:
+			self.keys[keynames_row[-1]] = gtk.ToggleButton(keynames_row[-1])
+			# Callback for the right Shift key
+			self.keys[keynames_row[-1]].connect('toggled', self.shift_key_callback)
+			self.table.attach(self.keys[keynames_row[-1]], xi, 30, yi, yi+2)
+		else:
+			self.keys[keynames_row[-1]] = gtk.Button(keynames_row[-1])
+			self.table.attach(self.keys[keynames_row[-1]], xi, 30, yi, yi+2)
+	
+	def generate_last_row(self, keynames_row):
+		yi, yj = 8, 10
+		
+		def add_button(keyname, xi, xj):
+			self.keys[keyname] = gtk.Button(keyname)
+			self.table.attach(self.keys[keyname], xi, xj, yi, yj)
+		
+		def add_altgr_togglebutton(keyname, xi, xj):
+			self.keys[keyname] = gtk.ToggleButton(keyname)
+			# Callback for the AltGr key
+			self.keys[keyname].connect('toggled', self.altgr_key_callback)
+			self.table.attach(self.keys[keyname], xi, xj, yi, yj)
+		
+		add_button(keynames_row5[0], 0, 3)
+		add_button(keynames_row5[1], 3, 6)
+		add_button(keynames_row5[2], 6, 9)
+		add_button(keynames_row5[3], 9, 18)
+		add_altgr_togglebutton(keynames_row5[4], 18, 21)
+		add_button(keynames_row5[5], 21, 24)
+		add_button(keynames_row5[6], 24, 27)
+		add_button(keynames_row5[7], 27, 30)
+	
+	def show_keys_level(self, n):
+		for key in self.keys:
+			if type(self.keys[key]) == type([]):
+				# Notice how n = i+1 and i = n-1.
+				for i in range(4):
+					if i != n-1:
+						self.keys[key][i].hide()
+				self.keys[key][n-1].show()
+		self.level_indicator.set_label(_('Level {0}').format(n))
+	
+	def select_keys_level(self):
+		lshift = self.keys['<LFSH>']
+		rshift = self.keys['<RTSH>']
+		altgr  = self.keys['<RALT>']
+		# Check whether AltGr is active
+		if altgr.get_active():
+			# AltGr is active
+			if not ( lshift.get_active() or rshift.get_active() ):
+				# No Shift key is active
+				self.show_keys_level(3)
+			elif ( lshift.get_active() and rshift.get_active() ):
+				# Both Shift keys are active
+				self.show_keys_level(4)
+			else:
+				print "Something's wrong! Doctor must die!"
+		else:
+			# AltGr is not active
+			if not ( lshift.get_active() or rshift.get_active() ):
+				# No Shift key is active
+				self.show_keys_level(1)
+			elif ( lshift.get_active() and rshift.get_active() ):
+				# Both Shift keys are active
+				self.show_keys_level(2)
+			else:
+				print "Something's wrong! Doctor must die!"
+	
+	def shift_key_callback(self, key):
+		# Determine which shift key this is and which one is the 'other' one
+		if key == self.keys['<LFSH>']:
+			otherkey = self.keys['<RTSH>']
+		elif key == self.keys['<RTSH>']:
+			otherkey = self.keys['<LFSH>']
+		else:
+			print "I am dishonoured! Aaaaahhhh!!!..."
+		
+		if key.get_active():
+			if not otherkey.get_active():
+				otherkey.set_active(True)
+				self.select_keys_level()
+		else:
+			if otherkey.get_active():
+				otherkey.set_active(False)
+				self.select_keys_level()
+	
+	def altgr_key_callback(self, key):
+		self.select_keys_level()
+	
+	def save_file(self, *args):
+		file_chooser = gtk.FileChooserDialog(title="Open...", action=gtk.FILE_CHOOSER_ACTION_SAVE, buttons=(gtk.STOCK_CANCEL,gtk.RESPONSE_CANCEL,gtk.STOCK_SAVE,gtk.RESPONSE_OK))
+		response = file_chooser.run()
+		if response == gtk.RESPONSE_OK:
+			output_filename = file_chooser.get_filename()
+		else:
+			file_chooser.destroy()
+			return
+		file_chooser.destroy()
+		self.generate_file(output_filename)
+	
+	def generate_file(self, output_filename):
+		xkb_outfile = open(output_filename,'w')
+		xkb_outfile.write('// $XKeyboardConfig$\n')
+		xkb_outfile.write('// Keyboard layout file for xkb, generated with {0} {1}\n'.format(APP_NAME, APP_VERSION))
+		xkb_outfile.write('// $XFree86$\n')
+		xkb_outfile.write('\n')
+		xkb_outfile.write('partial default alphanumeric_keys\n')
+		xkb_outfile.write('xkb_symbols "basic" {\n')
+		xkb_outfile.write('\n')
+		for key in keynames_row1+keynames_row2+keynames_row3+keynames_row4:
+			if len(self.keys[key]) == 4 :
+				xkb_outfile.write('    key %s	{ [%14s,%14s,%14s,%14s ] };\n' % (key, self.keys[key][0].value, self.keys[key][1].value, self.keys[key][2].value, self.keys[key][3].value))
+		xkb_outfile.write('    \n')
+		xkb_outfile.write('    include "level3(ralt_switch)"\n')
+		xkb_outfile.write('\n')
+		xkb_outfile.write('};\n')
+		xkb_outfile.close()
+		self.kb_statusbar.push(2, _("Configuration saved to %s") % (output_filename))
+		print "Configuration saved to %s" % (output_filename)
+	
+	
+	def set_friendly_labels(self):
+		mapping = {'<BKSP>':'Backspace', '<TAB>':'Tab', '<CAPS>':'Caps Lock', '<RTRN>':'Enter', '<LFSH>':'Shift', '<RTSH>':'Shift', '<LCTL>':'Ctrl','<RCTL>':'Ctrl','<LALT>':'Alt','<RALT>':'AltGr','<SPCE>':'Space Bar','<MENU>':'Menu'}
+		for k in mapping:
+			self.keys[k].set_label(mapping[k])
+	
+	def show_about_dialog(self, data=None):
+		about_dialog = gtk.AboutDialog()
+		about_dialog.set_name(APP_TITLE)
+		about_dialog.set_comments(APP_INTRO)
+		about_dialog.set_authors([APP_AUTHOR])
+		about_dialog.set_license(APP_LICENSE)
+		about_dialog.set_website(APP_HOMEPAGE)
+		about_dialog.run()
+		about_dialog.destroy()
+		del(about_dialog)
+	
+	def get_keyboard_properties(self):
+		kb_properties_dialog = gtk.Dialog(_('Keyboard Properties'))
+		label_intro = gtk.Label(_('Enter properties for the keyboard layout to be installed.\nWarning: This feature is experimental!'))
+		label_kbname = gtk.Label(_("KB Name"))
+		entry_kbname = gtk.Entry()
+		label_kbshortdesc = gtk.Label(_("Short Description"))
+		entry_kbshortdesc = gtk.Entry()
+		entry_kbshortdesc.set_max_length(6)
+		label_kbdesc = gtk.Label(_("Description"))
+		entry_kbdesc = gtk.Entry()
+		label_kblangcode = gtk.Label(_("Language Code"))
+		entry_kblangcode = gtk.Entry()
+		entry_kblangcode.set_max_length(3)
+		option_forceinst = gtk.CheckButton(label='Force installation (Risky!)', use_underline=True)
+		kbprop_table = gtk.Table(rows=6, columns=2, homogeneous=True)
+		kbprop_table.attach(label_intro, 0,2,0,1)
+		kbprop_table.attach(label_kbname, 0,1,1,2)
+		kbprop_table.attach(entry_kbname, 1,2,1,2)
+		kbprop_table.attach(label_kbdesc, 0,1,2,3)
+		kbprop_table.attach(entry_kbdesc, 1,2,2,3)
+		kbprop_table.attach(label_kbshortdesc, 0,1,3,4)
+		kbprop_table.attach(entry_kbshortdesc, 1,2,3,4)
+		kbprop_table.attach(label_kblangcode, 0,1,4,5)
+		kbprop_table.attach(entry_kblangcode, 1,2,4,5)
+		kbprop_table.attach(option_forceinst, 0,2,5,6)
+		kb_properties_dialog.vbox.add(kbprop_table)
+		ok_button = gtk.Button(stock=gtk.STOCK_OK)
+		cancel_button = gtk.Button(stock=gtk.STOCK_CANCEL)
+		
+		def set_keyboard_properties(button):
+			self.keyboard_properties['kbname'] = entry_kbname.get_text()
+			self.keyboard_properties['kbshortdesc'] = entry_kbshortdesc.get_text()
+			self.keyboard_properties['kbdesc'] = entry_kbdesc.get_text()
+			self.keyboard_properties['kblangcode'] = entry_kblangcode.get_text()
+			if option_forceinst.get_active()==True:
+				self.kbinstall_options['forced'] = '--force'
+			else:
+				self.kbinstall_options['forced'] = ''
+			self.flag_installingnow = True
+		
+		def clear_keyboard_properties(button):
+			for i in self.keyboard_properties:
+				self.keyboard_properties[i] = ''
+			self.flag_installingnow = False
+		
+		ok_button.connect('clicked', set_keyboard_properties)
+		ok_button.connect_object('clicked', gtk.Widget.destroy, kb_properties_dialog)
+		cancel_button.connect('clicked', clear_keyboard_properties)
+		cancel_button.connect_object('clicked', gtk.Widget.destroy, kb_properties_dialog)
+		kb_properties_dialog.action_area.add(cancel_button)
+		kb_properties_dialog.action_area.add(ok_button)
+		kb_properties_dialog.show_all()
+		kb_properties_dialog.run()
+		#Check if all fields were filled
+		print self.keyboard_properties
+		if self.flag_installingnow:
+			if not '' in self.keyboard_properties.itervalues():
+				return 0
+			else:
+				return 2
+		else:
+			return 1
+	
+	def call_kbinstall(self):
+		TMP_DIR = '/tmp/kalidsaz'
+		TMP_OUTFILE = '/tmp/kalidsaz/kblayout'
+		try:
+			os.mkdir(TMP_DIR)
+		except:
+			pass
+		self.generate_file(TMP_OUTFILE)
+		
+		dialog = gtk.Dialog(_('Root password required!'))
+		label1 = gtk.Label(_('Installation requires to be run as root.\nPlease enter the root password'))
+		label2 = gtk.Label(_('Password:'))
+		entry = gtk.Entry()
+		entry.set_visibility(False)
+		dialog.vbox.add(label1)
+		hbox = gtk.HBox()
+		dialog.vbox.add(hbox)
+		hbox.add(label2)
+		hbox.add(entry)
+		ok_button = gtk.Button(stock=gtk.STOCK_OK)
+		cancel_button = gtk.Button(stock=gtk.STOCK_CANCEL)
+		
+		def call_kbinstall_command(widget):
+			rootpw = entry.get_text()+'\n'
+			INSTALL_COMMAND = 'su -c "python {0} -f {1} -n {2} -s {3} -d {4} -l {5} {6}"'.format(KB_INST_SCRIPT,TMP_OUTFILE,self.keyboard_properties['kbname'],self.keyboard_properties['kbshortdesc'],self.keyboard_properties['kbdesc'],self.keyboard_properties['kblangcode'],self.kbinstall_options['forced'])
+			print "Executing:", INSTALL_COMMAND
+			proc = subprocess.Popen([INSTALL_COMMAND], shell=True, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+			command_output = proc.stdin.write(rootpw)
+			print command_output
+			print "RETCODE:", proc.returncode
+			STDOUTPUT = proc.stdout.read()
+			print "STDOUT:\n", STDOUTPUT
+			proc.communicate()
+			print "RETCODE:", proc.returncode
+			result_dialog = gtk.Dialog(_('Result'))
+			result_label1 = gtk.Label()
+			if proc.returncode == 0:
+				result_label1.set_text(_('Keyboard installed successfully!'))
+			else:
+				result_label1.set_text(_('Something went wrong. Keyboard could not be installed'))
+			result_label2 = gtk.Label('Detailed Output:\n{0}'.format(STDOUTPUT)) #This should show detailed output
+			result_label2.set_selectable(True) #Output should be copyable
+			result_dialog.vbox.add(result_label1)
+			result_dialog.vbox.add(result_label2)
+			result_okbutton = gtk.Button(stock=gtk.STOCK_OK)
+			result_okbutton.connect_object('clicked', gtk.Widget.destroy, result_dialog)
+			result_dialog.action_area.add(result_okbutton)
+			result_dialog.show_all()
+			result_dialog.run()
+		entry.connect('activate', call_kbinstall_command)
+		entry.connect_object('activate', gtk.Widget.destroy, dialog)
+		ok_button.connect('clicked', call_kbinstall_command)
+		ok_button.connect_object('clicked', gtk.Widget.destroy, dialog)
+		cancel_button.connect_object('clicked', gtk.Widget.destroy, dialog)
+		dialog.action_area.add(cancel_button)
+		dialog.action_area.add(ok_button)
+		dialog.show_all()
+		dialog.run()
+		#Delete temporary files
+		os.remove(TMP_OUTFILE)
+		try:
+			os.rmdir(TMP_DIR)
+		except:
+			pass
+	
+	def install_keyboard(self, button):
+		
+		def error_missing_properties():
+			dialog = gtk.Dialog(_('Error: Missing keyboard properties'))
+			label_detail = gtk.Label(_('Please fill in the missing keyboard layout properties.'))
+			ok_button = gtk.Button(stock=gtk.STOCK_OK)
+			ok_button.connect_object('clicked', gtk.Widget.destroy, dialog)
+			dialog.vbox.add(label_detail)
+			dialog.action_area.add(ok_button)
+			dialog.show_all()
+			dialog.run()
+		
+		r = self.get_keyboard_properties()
+		print r
+		if r == 0:
+			self.call_kbinstall()
+		elif r == 1:
+			print "Installation cancelled"
+		elif r == 2:
+			error_missing_properties()
+		else:
+			pass
+
+
+if __name__ == '__main__':
+	klg = KB_Layout_Tool()
