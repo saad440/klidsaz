@@ -497,6 +497,7 @@ class KB_Layout_Tool(object):
 			dialog.run()
 		
 		r = self.get_keyboard_properties()
+		self.flag_installingnow = False    #Reset the flag
 		print r
 		if r == 0:
 			self.call_kbinstall()
