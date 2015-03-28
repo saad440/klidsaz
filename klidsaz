@@ -19,9 +19,9 @@
 #       MA 02110-1301, USA.
 
 APP_NAME = "klidsaz"
-APP_VERSION = "2.0 beta 1"
+APP_VERSION = "2.0 beta 2"
 APP_AUTHOR = "Muhammad Saad"
-APP_HOMEPAGE = "https://github.com/saad440/klidsaz"
+APP_HOMEPAGE = "http://paklinuxos.org"
 
 KB_INST_SCRIPT = './kb_install'
 
@@ -358,38 +358,46 @@ class KB_Layout_Tool(object):
 	
 	def get_keyboard_properties(self):
 		kb_properties_dialog = gtk.Dialog(_('Keyboard Properties'))
-		label_intro = gtk.Label(_('Enter properties for the keyboard layout to be installed.\nWarning: This feature is experimental!'))
-		label_kbname = gtk.Label(_("KB Name"))
-		entry_kbname = gtk.Entry()
-		label_kbshortdesc = gtk.Label(_("Short Description"))
-		entry_kbshortdesc = gtk.Entry()
-		entry_kbshortdesc.set_max_length(6)
-		label_kbdesc = gtk.Label(_("Description"))
-		entry_kbdesc = gtk.Entry()
-		label_kblangcode = gtk.Label(_("Language Code"))
-		entry_kblangcode = gtk.Entry()
-		entry_kblangcode.set_max_length(3)
-		option_forceinst = gtk.CheckButton(label='Force installation (Risky!)', use_underline=True)
-		kbprop_table = gtk.Table(rows=6, columns=2, homogeneous=True)
-		kbprop_table.attach(label_intro, 0,2,0,1)
-		kbprop_table.attach(label_kbname, 0,1,1,2)
-		kbprop_table.attach(entry_kbname, 1,2,1,2)
-		kbprop_table.attach(label_kbdesc, 0,1,2,3)
-		kbprop_table.attach(entry_kbdesc, 1,2,2,3)
-		kbprop_table.attach(label_kbshortdesc, 0,1,3,4)
-		kbprop_table.attach(entry_kbshortdesc, 1,2,3,4)
-		kbprop_table.attach(label_kblangcode, 0,1,4,5)
-		kbprop_table.attach(entry_kblangcode, 1,2,4,5)
-		kbprop_table.attach(option_forceinst, 0,2,5,6)
+		intro_label = gtk.Label(_('Enter properties for the keyboard layout to be installed.\nWarning: This feature is experimental!'))
+		kbname_label = gtk.Label(_("Keyboard Name"))
+		kbname_entry = gtk.Entry()
+		kbname__help = gtk.Label(_("Keyboard layout name (short and lowercase)"))
+		kbshortdesc_label = gtk.Label(_("Short Description"))
+		kbshortdesc_entry = gtk.Entry()
+		kbshortdesc_entry.set_max_length(8)
+		kbshortdesc__help = gtk.Label(_("Label to show in keyboard layout indicators"))
+		kbdesc_label = gtk.Label(_("Description"))
+		kbdesc_entry = gtk.Entry()
+		kbdesc__help = gtk.Label(_("Name for the keyboard to show in layouts list"))
+		kblangcode_label = gtk.Label(_("Language Code"))
+		kblangcode_entry = gtk.Entry()
+		kblangcode_entry.set_max_length(3)
+		kblangcode__help = gtk.Label(_("ISO 639-2 language code for the KB layout"))
+		option_forceinst = gtk.CheckButton(label=_('Force installation (Risky!)'), use_underline=True)
+		kbprop_table = gtk.Table(rows=11, columns=2, homogeneous=False)
+		kbprop_table.attach(intro_label , 0,2,0,1, xpadding=2, ypadding=2)
+		kbprop_table.attach(kbname_label, 0,1,1,2, xpadding=2, ypadding=2)
+		kbprop_table.attach(kbname_entry, 1,2,1,2, xpadding=2, ypadding=2)
+		kbprop_table.attach(kbname__help, 1,2,2,3, xpadding=2, ypadding=2)
+		kbprop_table.attach(kbdesc_label, 0,1,3,4, xpadding=2, ypadding=2)
+		kbprop_table.attach(kbdesc_entry, 1,2,3,4, xpadding=2, ypadding=2)
+		kbprop_table.attach(kbdesc__help, 1,2,4,5, xpadding=2, ypadding=2)
+		kbprop_table.attach(kbshortdesc_label, 0,1,5,6, xpadding=2, ypadding=2)
+		kbprop_table.attach(kbshortdesc_entry, 1,2,5,6, xpadding=2, ypadding=2)
+		kbprop_table.attach(kbshortdesc__help, 1,2,6,7, xpadding=2, ypadding=2)
+		kbprop_table.attach(kblangcode_label, 0,1,7,8,  xpadding=2, ypadding=2)
+		kbprop_table.attach(kblangcode_entry, 1,2,7,8,  xpadding=2, ypadding=2)
+		kbprop_table.attach(kblangcode__help, 1,2,8,9,  xpadding=2, ypadding=2)
+		kbprop_table.attach(option_forceinst, 0,2,9,10, xpadding=2, ypadding=2)
 		kb_properties_dialog.vbox.add(kbprop_table)
 		ok_button = gtk.Button(stock=gtk.STOCK_OK)
 		cancel_button = gtk.Button(stock=gtk.STOCK_CANCEL)
 		
 		def set_keyboard_properties(button):
-			self.keyboard_properties['kbname'] = entry_kbname.get_text()
-			self.keyboard_properties['kbshortdesc'] = entry_kbshortdesc.get_text()
-			self.keyboard_properties['kbdesc'] = entry_kbdesc.get_text()
-			self.keyboard_properties['kblangcode'] = entry_kblangcode.get_text()
+			self.keyboard_properties['kbname'] = kbname_entry.get_text()
+			self.keyboard_properties['kbshortdesc'] = kbshortdesc_entry.get_text()
+			self.keyboard_properties['kbdesc'] = kbdesc_entry.get_text()
+			self.keyboard_properties['kblangcode'] = kblangcode_entry.get_text()
 			if option_forceinst.get_active()==True:
 				self.kbinstall_options['forced'] = '--force'
 			else:
@@ -445,7 +453,7 @@ class KB_Layout_Tool(object):
 			rootpw = entry.get_text()+'\n'
 			INSTALL_COMMAND = 'su -c "python {0} -f {1} -n {2} -s {3} -d {4} -l {5} {6}"'.format(KB_INST_SCRIPT,TMP_OUTFILE,self.keyboard_properties['kbname'],self.keyboard_properties['kbshortdesc'],self.keyboard_properties['kbdesc'],self.keyboard_properties['kblangcode'],self.kbinstall_options['forced'])
 			print "Executing:", INSTALL_COMMAND
-			proc = subprocess.Popen([INSTALL_COMMAND], shell=True, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+			proc = subprocess.Popen(['su -c "echo abc > /home/saad/test/abc.txt && echo abc"'], shell=True, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 			command_output = proc.stdin.write(rootpw)
 			print command_output
 			print "RETCODE:", proc.returncode
