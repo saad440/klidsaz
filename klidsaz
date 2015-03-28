@@ -21,7 +21,7 @@
 APP_NAME = "klidsaz"
 APP_VERSION = "2.0 beta 2"
 APP_AUTHOR = "Muhammad Saad"
-APP_HOMEPAGE = "http://paklinuxos.org"
+APP_HOMEPAGE = "https://github.com/saad440/klidsaz"
 
 KB_INST_SCRIPT = './kb_install'
 
@@ -453,7 +453,7 @@ class KB_Layout_Tool(object):
 			rootpw = entry.get_text()+'\n'
 			INSTALL_COMMAND = 'su -c "python {0} -f {1} -n {2} -s {3} -d {4} -l {5} {6}"'.format(KB_INST_SCRIPT,TMP_OUTFILE,self.keyboard_properties['kbname'],self.keyboard_properties['kbshortdesc'],self.keyboard_properties['kbdesc'],self.keyboard_properties['kblangcode'],self.kbinstall_options['forced'])
 			print "Executing:", INSTALL_COMMAND
-			proc = subprocess.Popen(['su -c "echo abc > /home/saad/test/abc.txt && echo abc"'], shell=True, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+			proc = subprocess.Popen([INSTALL_COMMAND], shell=True, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 			command_output = proc.stdin.write(rootpw)
 			print command_output
 			print "RETCODE:", proc.returncode
