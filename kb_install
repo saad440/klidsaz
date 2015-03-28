@@ -3,11 +3,11 @@
 #
 #  kb_install.py
 #  
-#  Copyright 2014 Muhammad Saad <saad@localhost.localdomain>
+#  Copyright 2014 Muhammad Saad <muhammad.saad3@gmail.com>
 #  
 #  This program is free software; you can redistribute it and/or modify
 #  it under the terms of the GNU General Public License as published by
-#  the Free Software Foundation; either version 2 of the License, or
+#  the Free Software Foundation; either version 3 of the License, or
 #  (at your option) any later version.
 #  
 #  This program is distributed in the hope that it will be useful,
@@ -39,19 +39,19 @@ parser = OptionParser()
 
 parser.add_option("-f", "--file",
 		action="store", type="string", dest="filename",
-		help="Keyboard layout FILE", metavar="FILE")
+		help="Keyboard layout file", metavar="FILE")
 parser.add_option("-n", "--name",
 		action="store", type="string", dest="kbname",
-		help="Keyboard layout NAME (e.g; pk)", metavar="NAME")
+		help="Keyboard layout name. Preferrably short and lowercase (e.g; pk)", metavar="NAME")
 parser.add_option("-s", "--short-description",
 		action="store", type="string", dest="shortdesc",
-		help="Short (2 or 3 letters) description of the layout (e.g; ur, ps,..)")
+		help="Short description of the layout to show in keyboard layout indicators (e.g; ur, ps,..)")
 parser.add_option("-d", "--description",
 		action="store", type="string", dest="description",
-		help="Description of the layout (e.g; Urdu, Pashto,..)")
+		help="Description of the keyboard layout (e.g; Urdu, Pashto,..)")
 parser.add_option("-l", "--langcode",
 		action="store", type="string", dest="langcode",
-		help="The ISO 639-2 language code of the keyboard layout (e.g; urd, pus,..)", metavar="LANGCODE")
+		help="ISO 639-2 language code for the layout's language (e.g; urd, pus,..)", metavar="LANGCODE")
 parser.add_option("-F", "--force",
 		action="store_true", dest="forced", default=False,
 		help="Force operation. Override safe mode.")
@@ -200,3 +200,4 @@ def main():
 
 if __name__ == '__main__':
 	main()
+
