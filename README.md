@@ -2,6 +2,10 @@
 Klidsaz is a tool to create and install your own custom keyboard layouts in GNU/Linux.
 Most current GNU/Linux distributions handle keyboard layouts through xkeyboard-config. The layouts are plain text files mapping keys to the desired characters. To make them available to common desktop environments (or "install" them), an entry has to be made in XKB rules. Klidsaz aims to automate both these tasks of creating and installing custom keyboard layouts.
 
+# Usage
+Run klidsaz. Select a key. An input box will appear. Enter the desired character or its Unicode value.
+Press "Generate File" to simply get your keyboard layout file. Or "Install Keyboard" if you want to install it.
+
 # Homepage
 https://github.com/saad440/klidsaz
 
@@ -18,7 +22,7 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 # Contributors
-Muhammad Saad <muhammad.saad3@gmail.com>
+Muhammad Saad <muhammad.saad3@gmail.com>  (original author)
 
 # Features
 * Create a keyboard layout file for XKB
